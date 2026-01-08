@@ -17,34 +17,12 @@ const RAILWAY_DOMAIN = process.env.RAILWAY_DOMAIN;
 const sessions = {};
 const leads = [];
 
-const ANANYA_SYSTEM_PROMPT = `You are Ananya, a professional operations coordinator for MERRYMAIDS roofing company.
-You handle inbound calls for ROOF INSTALLATION ONLY.
-Personality: Calm, helpful, professional. Speak clear Indian English.
+const ANANYA_SYSTEM_PROMPT = 'You are Ananya, a professional operations coordinator for MERRYMAIDS roofing company. You handle inbound calls for ROOF INSTALLATION ONLY. Personality: Calm, helpful, professional. Speak clear Indian English. Your job: 1. Greet caller warmly 2. Ask these questions in order: Installation or repair?, ZIP code, Roof type, Preferred callback time 3. Collect and confirm all details. IMPORTANT RULES: REJECT repair jobs, REJECT emergency calls, REJECT insurance claims. Be natural and conversational. Keep responses under 20 words. If caller asks for person, say: I will have someone from our team call you back shortly.';
 
-Your job:
-1. Greet caller warmly
-2. Ask these questions EXACTLY in order:
-   - "Are you looking for a new roof installation or repair?"
-   - "What is your ZIP code?"
-   - "What type of roof do you have? (Tile, Metal, Asphalt, etc.)"
-   - "When would be a good time for us to call you back?"
-3. Collect and confirm all details
-4. End with: "Thank you! We'll call you back at this number"
-
-IMPORTANT RULES:
-- REJECT repair jobs: "We currently only do installations. For repairs, please contact..."
-- REJECT emergency calls: "For emergencies, call our hotline: +1-XXX-XXX-XXXX"
-- REJECT insurance claims: "We don't handle insurance claims. You need to contact..."
-- Be natural and conversational
-- Keep responses under 20 words
-- If caller asks for person, say: "I'll have someone from our team call you back shortly"`;
-
-// CRITICAL: Health check endpoint for Railway
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     status: 'Ananya Voice Agent is running',
@@ -53,13 +31,11 @@ app.get('/', (req, res) => {
   });
 });
 
-// Exotel incoming call endpoint
 app.post('/exotel/incoming-call', async (req, res) => {
   try {
     console.log('Incoming call:', req.body);
     const { CallSid, From } = req.body;
 
-    // Create session
     if (!sessions[CallSid]) {
       sessions[CallSid] = {
         callSid: CallSid,
@@ -70,18 +46,16 @@ app.post('/exotel/incoming-call', async (req, res) => {
       };
     }
 
-    // Generate greeting audio
     const greeting = 'Hello, thank you for calling MERRYMAIDS. This is Ananya. How can I help you today?';
     const audioUrl = await generateAzureAudio(greeting);
 
-    // Respond with Exotel XML to play audio and record
     const response = xml.create('Response')
       .ele('Play').txt(audioUrl).up()
       .ele('Record', {
         timeout: '5',
         finishOnKey: '#',
         transcribe: 'true',
-        transcribeCallback: `https://${RAILWAY_DOMAIN}/exotel/voice-response`
+        transcribeCallback: 'https://' + RAILWAY_DOMAIN + '/exotel/voice-response'
       });
 
     res.type('application/xml');
@@ -92,7 +66,6 @@ app.post('/exotel/incoming-call', async (req, res) => {
   }
 });
 
-// Exotel voice response endpoint
 app.post('/exotel/voice-response', async (req, res) => {
   try {
     console.log('Voice response:', req.body);
@@ -103,24 +76,20 @@ app.post('/exotel/voice-response', async (req, res) => {
       return res.status(400).send('Invalid call session');
     }
 
-    // Add user input to conversation
     const userInput = SpeechResult || '';
     session.conversationHistory.push({
       role: 'user',
       content: userInput
     });
 
-    // Get AI response
     const aiResponse = await getAnanyaResponse(session.conversationHistory);
     session.conversationHistory.push({
       role: 'assistant',
       content: aiResponse
     });
 
-    // Generate audio for response
     const audioUrl = await generateAzureAudio(aiResponse);
 
-    // If we have collected all details, save lead and end call
     if (session.conversationHistory.length > 8) {
       const lead = {
         callSid: CallSid,
@@ -138,14 +107,13 @@ app.post('/exotel/voice-response', async (req, res) => {
       res.type('application/xml');
       res.send(endResponse.toString());
     } else {
-      // Continue conversation
       const response = xml.create('Response')
         .ele('Play').txt(audioUrl).up()
         .ele('Record', {
           timeout: '5',
           finishOnKey: '#',
           transcribe: 'true',
-          transcribeCallback: `https://${RAILWAY_DOMAIN}/exotel/voice-response`
+          transcribeCallback: 'https://' + RAILWAY_DOMAIN + '/exotel/voice-response'
         });
 
       res.type('application/xml');
@@ -157,7 +125,6 @@ app.post('/exotel/voice-response', async (req, res) => {
   }
 });
 
-// Exotel call status endpoint
 app.post('/exotel/call-status', async (req, res) => {
   try {
     console.log('Call status:', req.body);
@@ -166,7 +133,7 @@ app.post('/exotel/call-status', async (req, res) => {
     if (sessions[CallSid]) {
       sessions[CallSid].status = CallStatus;
       sessions[CallSid].duration = Duration;
-      console.log(`Call ${CallSid} ended with status: ${CallStatus}, duration: ${Duration}s`);
+      console.log('Call ' + CallSid + ' ended with status: ' + CallStatus + ', duration: ' + Duration + 's');
     }
 
     res.status(200).send('OK');
@@ -176,7 +143,6 @@ app.post('/exotel/call-status', async (req, res) => {
   }
 });
 
-// Helper functions
 async function getAnanyaResponse(conversationHistory) {
   try {
     const response = await axios.post(
@@ -195,7 +161,7 @@ async function getAnanyaResponse(conversationHistory) {
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Authorization': 'Bearer ' + OPENAI_API_KEY,
           'Content-Type': 'application/json'
         }
       }
@@ -210,7 +176,7 @@ async function getAnanyaResponse(conversationHistory) {
 async function generateAzureAudio(text) {
   try {
     const response = await axios.post(
-      `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      'https://' + AZURE_SPEECH_REGION + '.tts.speech.microsoft.com/cognitiveservices/v1',
       buildSSML(text),
       {
         headers: {
@@ -232,33 +198,30 @@ function buildSSML(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '\"')
-    .replace(/'/g, ''');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 
-  return `<speak version='1.0' xml:lang='en-IN'><voice name='en-IN-AnanyaNeural'><prosody rate='0.95' pitch='0%'>${escaped}</prosody></voice></speak>`;
+  return '<speak version="1.0" xml:lang="en-IN"><voice name="en-IN-AnanyaNeural"><prosody rate="0.95" pitch="0%">' + escaped + '</prosody></voice></speak>';
 }
 
 function extractLeadDetails(conversationHistory) {
-  // Simple extraction - can be enhanced
   return {
-    fullConversation: conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')
+    fullConversation: conversationHistory.map(m => m.role + ': ' + m.content).join('\n')
   };
 }
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Ananya Voice Agent listening on port ${PORT}`);
+  console.log('Ananya Voice Agent listening on port ' + PORT);
 });
 
 module.exports = app;

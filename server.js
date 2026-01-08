@@ -3,7 +3,6 @@ const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const xml = require('xmlbuilder');
-
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -15,115 +14,169 @@ const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION || 'centralindia';
 const EXOTEL_API_KEY = process.env.EXOTEL_API_KEY;
 const EXOTEL_SID = process.env.EXOTEL_SID;
 const RAILWAY_DOMAIN = process.env.RAILWAY_DOMAIN;
-
 const sessions = {};
+const leads = [];
 
-const ANANYA_SYSTEM_PROMPT = `You are Ananya, a professional operations coordinator for a roofing company called MERRYMAIDS. You are handling inbound installation service calls.
-Your personality: Calm, helpful, professional. You speak clear Indian English with professional tone.
-Your job is to:
-1. Greet the caller warmly
-2. Identify the reason for their call (roof inspection, installation, repair, etc.)
-3. Ask exactly 3 questions:
- - What is the specific issue/service needed?
- - When would they like to schedule?
- - What is their address/location?
-4. Offer 2 specific time slots between 9am-6pm (1 hour appointments)
-5. Confirm the booking
-6. Send WhatsApp confirmation after the call
-IMPORTANT:
-- Be conversational, not robotic
-- If caller asks to speak with a person, escalate
-- If caller seems angry, be extra sympathetic
-- Never discuss contracts or legal matters
-- Keep responses concise and natural
-- Manage max 3 jobs per technician per day with 1 hour buffer between appointments`;
+const ANANYA_SYSTEM_PROMPT = `You are Ananya, a professional operations coordinator for MERRYMAIDS roofing company.
+You handle inbound calls for ROOF INSTALLATION ONLY.
+Personality: Calm, helpful, professional. Speak clear Indian English.
 
-// Health check - Root endpoint
+Your job:
+1. Greet caller warmly
+2. Ask these questions EXACTLY in order:
+   - "Are you looking for a new roof installation or repair?"
+   - "What is your ZIP code?"
+   - "What type of roof do you have? (Tile, Metal, Asphalt, etc.)"
+   - "When would be a good time for us to call you back?"
+3. Collect and confirm all details
+4. End with: "Thank you! We'll call you back at this number"
+
+IMPORTANT RULES:
+- REJECT repair jobs: "We currently only do installations. For repairs, please contact..."
+- REJECT emergency calls: "For emergencies, call our hotline: +1-XXX-XXX-XXXX"
+- REJECT insurance claims: "We don't handle insurance claims. You need to contact..."
+- Be natural and conversational
+- Keep responses under 20 words
+- If caller asks for person, say: "I'll have someone from our team call you back shortly"`;
+
+// CRITICAL: Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'Ananya Voice Agent is running',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });
 });
 
-// Handle Exotel inbound webhook
-app.post('/exotel/inbound', async (req, res) => {
+// Exotel incoming call endpoint
+app.post('/exotel/incoming-call', async (req, res) => {
   try {
-    const { CallSid, From, CallType } = req.body;
-    
+    console.log('Incoming call:', req.body);
+    const { CallSid, From } = req.body;
+
+    // Create session
     if (!sessions[CallSid]) {
       sessions[CallSid] = {
         callSid: CallSid,
         callerNumber: From,
         conversationHistory: [],
-        appointmentDetails: {}
+        appointmentDetails: {},
+        stage: 'greeting'
       };
     }
-    
-    const greeting = 'Hello, thank you for calling MERRYMAIDS. This is Ananya. How can I help you today?';
-    const audioUrl = 'https://placeholder-audio.com/audio.mp3';
-    
-    const response = xml.create('Response')
-      .ele('Dial', { timeout: '30' })
-      .ele('Number', { statusCallbackUrl: `https://${RAILWAY_DOMAIN}/exotel/status` })
-      .txt(From)
-      .up()
-      .up()
-      .ele('Play')
-      .txt(audioUrl);
-    
-    res.type('application/xml');
-    res.send(response.toString());
-  } catch (error) {
-    console.error('Error handling inbound call:', error);
-    res.status(500).send('Error processing call');
-  }
-});
 
-// Handle conversation webhook
-app.post('/exotel/conversation', async (req, res) => {
-  try {
-    const { CallSid, SpeechResult, Digits } = req.body;
-    const session = sessions[CallSid];
-    
-    if (!session) {
-      return res.status(400).send('Invalid call session');
-    }
-    
-    let userInput = SpeechResult || Digits || '';
-    
-    session.conversationHistory.push({
-      role: 'user',
-      content: userInput
-    });
-    
-    const aiResponse = await getAnanyaResponse(session.conversationHistory);
-    
-    session.conversationHistory.push({
-      role: 'assistant',
-      content: aiResponse
-    });
-    
-    const audioUrl = 'https://placeholder-audio.com/audio.mp3';
-    
+    // Generate greeting audio
+    const greeting = 'Hello, thank you for calling MERRYMAIDS. This is Ananya. How can I help you today?';
+    const audioUrl = await generateAzureAudio(greeting);
+
+    // Respond with Exotel XML to play audio and record
     const response = xml.create('Response')
       .ele('Play').txt(audioUrl).up()
       .ele('Record', {
         timeout: '5',
         finishOnKey: '#',
         transcribe: 'true',
-        transcribeCallback: `https://${RAILWAY_DOMAIN}/exotel/conversation`
+        transcribeCallback: `https://${RAILWAY_DOMAIN}/exotel/voice-response`
       });
-    
+
     res.type('application/xml');
     res.send(response.toString());
   } catch (error) {
-    console.error('Error in conversation:', error);
-    res.status(500).send('Error processing conversation');
+    console.error('Error handling incoming call:', error);
+    res.status(500).send('Error processing call');
   }
 });
 
+// Exotel voice response endpoint
+app.post('/exotel/voice-response', async (req, res) => {
+  try {
+    console.log('Voice response:', req.body);
+    const { CallSid, SpeechResult } = req.body;
+    const session = sessions[CallSid];
+
+    if (!session) {
+      return res.status(400).send('Invalid call session');
+    }
+
+    // Add user input to conversation
+    const userInput = SpeechResult || '';
+    session.conversationHistory.push({
+      role: 'user',
+      content: userInput
+    });
+
+    // Get AI response
+    const aiResponse = await getAnanyaResponse(session.conversationHistory);
+    session.conversationHistory.push({
+      role: 'assistant',
+      content: aiResponse
+    });
+
+    // Generate audio for response
+    const audioUrl = await generateAzureAudio(aiResponse);
+
+    // If we have collected all details, save lead and end call
+    if (session.conversationHistory.length > 8) {
+      const lead = {
+        callSid: CallSid,
+        callerNumber: session.callerNumber,
+        details: extractLeadDetails(session.conversationHistory),
+        timestamp: new Date().toISOString()
+      };
+      leads.push(lead);
+      console.log('Lead saved:', lead);
+
+      const endResponse = xml.create('Response')
+        .ele('Play').txt(audioUrl).up()
+        .ele('Hangup');
+
+      res.type('application/xml');
+      res.send(endResponse.toString());
+    } else {
+      // Continue conversation
+      const response = xml.create('Response')
+        .ele('Play').txt(audioUrl).up()
+        .ele('Record', {
+          timeout: '5',
+          finishOnKey: '#',
+          transcribe: 'true',
+          transcribeCallback: `https://${RAILWAY_DOMAIN}/exotel/voice-response`
+        });
+
+      res.type('application/xml');
+      res.send(response.toString());
+    }
+  } catch (error) {
+    console.error('Error in voice response:', error);
+    res.status(500).send('Error processing response');
+  }
+});
+
+// Exotel call status endpoint
+app.post('/exotel/call-status', async (req, res) => {
+  try {
+    console.log('Call status:', req.body);
+    const { CallSid, CallStatus, Duration } = req.body;
+
+    if (sessions[CallSid]) {
+      sessions[CallSid].status = CallStatus;
+      sessions[CallSid].duration = Duration;
+      console.log(`Call ${CallSid} ended with status: ${CallStatus}, duration: ${Duration}s`);
+    }
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error handling call status:', error);
+    res.status(500).send('Error processing status');
+  }
+});
+
+// Helper functions
 async function getAnanyaResponse(conversationHistory) {
   try {
     const response = await axios.post(
@@ -138,7 +191,7 @@ async function getAnanyaResponse(conversationHistory) {
           ...conversationHistory
         ],
         temperature: 0.7,
-        max_tokens: 150
+        max_tokens: 100
       },
       {
         headers: {
@@ -150,7 +203,7 @@ async function getAnanyaResponse(conversationHistory) {
     return response.data.choices[0].message.content;
   } catch (error) {
     console.error('OpenAI error:', error.response?.data || error.message);
-    return 'Sorry, I am having trouble understanding. Could you please repeat that?';
+    return 'Sorry, I did not understand. Could you please repeat that?';
   }
 }
 
@@ -179,10 +232,17 @@ function buildSSML(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-    
+    .replace(/"/g, '\"')
+    .replace(/'/g, ''');
+
   return `<speak version='1.0' xml:lang='en-IN'><voice name='en-IN-AnanyaNeural'><prosody rate='0.95' pitch='0%'>${escaped}</prosody></voice></speak>`;
+}
+
+function extractLeadDetails(conversationHistory) {
+  // Simple extraction - can be enhanced
+  return {
+    fullConversation: conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')
+  };
 }
 
 // Error handling middleware
@@ -197,7 +257,8 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {  console.log(`Ananya Voice Agent listening on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Ananya Voice Agent listening on port ${PORT}`);
 });
 
 module.exports = app;

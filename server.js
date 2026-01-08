@@ -11,11 +11,16 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({
-    status: 'Ananya Voice Agent is running',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
-  });
+  try {
+    res.json({
+      status: 'Ananya Voice Agent is running',
+      version: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Error in root handler:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

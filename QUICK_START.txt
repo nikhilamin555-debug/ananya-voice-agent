@@ -1,0 +1,128 @@
+
+==============================================
+MERRYMAIDS AI VOICE AGENT - QUICK START GUIDE
+==============================================
+
+Your system is LIVE and TESTED
+URL: https://ananya-voice-agent-production.up.railway.app
+
+
+3 WAYS TO TEST IT RIGHT NOW:
+=============================
+
+WAY 1: BROWSER (EASIEST - No tools needed)
+———————————————————————
+
+1. Open in any browser:
+   https://ananya-voice-agent-production.up.railway.app/health
+   
+   Expected: JSON with "status": "healthy"
+
+2. View appointments:
+   https://ananya-voice-agent-production.up.railway.app/appointments
+   
+   Expected: Empty list initially
+
+3. View business info:
+   https://ananya-voice-agent-production.up.railway.app/plumbing/info
+   
+   Expected: Complete Mr. Rooter Plumbing business details
+
+
+WAY 2: CURL COMMANDS (Terminal)
+———————————————————————
+
+Step 1 - Start a call:
+
+curl -X POST https://ananya-voice-agent-production.up.railway.app/demo/call/start \
+  -H "Content-Type: application/json"
+
+Copy the callId from the response
+
+Step 2 - Process input (replace XXXXX with callId):
+
+curl -X POST https://ananya-voice-agent-production.up.railway.app/demo/call/input \
+  -H "Content-Type: application/json" \
+  -d '{"callId": "call-XXXXX", "userInput": "I need drain cleaning"}'
+
+Step 3 - Book appointment:
+
+curl -X POST https://ananya-voice-agent-production.up.railway.app/demo/appointment/book \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callId": "call-XXXXX",
+    "name": "John Smith",
+    "phone": "+1-555-123-4567",
+    "email": "john@example.com",
+    "service": "Drain Cleaning",
+    "date": "2026-01-20",
+    "time": "2:00 PM"
+  }'
+
+
+WAY 3: AUTOMATED TEST SCRIPT
+———————————————————————
+
+Run all tests automatically:
+
+./test_api.sh
+
+This tests:
+- Call creation
+- Input processing
+- State machine
+- Appointment booking
+- Confirmations
+- Database persistence
+
+
+TEST DATA YOU CAN USE:
+======================
+
+Valid Phone: +1-555-123-4567
+Valid ZIP: 75001
+Valid Email: test@example.com
+Valid Date: 2026-01-20
+Valid Time: 2:00 PM
+
+Services:
+- Residential Plumbing
+- Commercial Plumbing
+- Emergency Plumbing
+- Drain Cleaning
+- Sewer Line Repair
+- Bathroom Remodeling
+
+
+TROUBLESHOOTING:
+================
+
+404 Not Found
+  → Check URL spelling
+  
+500 Internal Error  
+  → Check JSON syntax in curl command
+  
+Invalid callId
+  → Start new call with /demo/call/start
+  
+Connection refused
+  → System is running, check URL
+
+
+SUCCESS INDICATORS:
+===================
+
+You'll know it's working when you see:
+
+✅ /health returns status: healthy
+✅ /demo/call/start returns unique callId
+✅ /demo/call/input advances state
+✅ /demo/appointment/book returns appointmentId
+✅ /appointments shows appointment count: 1
+
+
+THAT'S IT!
+Your AI voice agent is ready to use.
+Go ahead and test it!
+

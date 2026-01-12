@@ -2,6 +2,7 @@ console.log('BOOTING MERRYMAIDS AI VOICE AGENT - PHASE 3 & 4');
 
 const express = require('express');
 const cors = require('cors');
+const path = require("path");
 const rateLimit = require('express-rate-limit');
 const twilio = require('twilio');
 const schedule = require('node-schedule');
@@ -19,6 +20,8 @@ const {
 const PLUMBING_KB = require('./engine/plumbingKnowledgeBase');
 
 const app = express();
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // Middleware
 app.use(cors());

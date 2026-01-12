@@ -1,3 +1,22 @@
+const express = require('express');
+const AICallAgent = require('./engine/AICallAgent');
+const { MR_ROOTER_PROFILE } = require('./engine/mrRooterProfile');
+const CallStateMachine = require('./engine/CallStateMachine');
+const elevenLabsService = require('./engine/elevenLabsService');
+const plumbingKnowledgeBase = require('./engine/plumbingKnowledgeBase');
+const validators = require('./engine/validators');
+const path = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+app.use(express.static('public'));
+
+let engine = null;
+
+
 
 // ============================================
 // WEB VOICE DEMO ENDPOINT

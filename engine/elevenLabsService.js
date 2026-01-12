@@ -36,7 +36,7 @@ const generateVoiceFromElevenLabs = async (text) => {
         body: JSON.stringify({
           text: makeHuman(text),
           voice_settings: {
-            stability: 0.4.5,
+            stability: 0.4,
             similarity_boost: 0.70,
           },
         }),

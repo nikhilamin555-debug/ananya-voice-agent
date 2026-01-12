@@ -1,3 +1,16 @@
+
+
+// ADD THIS BEFORE ELEVENLABS - Makes responses sound human
+function makeHuman(text) {
+  // 1. Cut long responses to max 2 sentences
+  let short = text.split(".").slice(0, 2).join(".");
+  
+  // 2. Add a casual reaction at the start
+  const reactions = ["Okay—", "Got it—", "Yeah—", "Alright—"];
+  const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+  
+  return `${reaction} ${short}`.trim();
+}
 // ElevenLabs Text-to-Speech Service
 // Converts AI responses to natural-sounding audio
 
@@ -21,10 +34,10 @@ const generateVoiceFromElevenLabs = async (text) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text,
+          text: makeHuman(text),
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
+            stability: 0.4.5,
+            similarity_boost: 0.70,
           },
         }),
       }

@@ -263,6 +263,23 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
+// Voice Demo Route
+app.get('/voice-demo.html', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const filePath = path.join(__dirname, 'public', 'voice-demo.html');
+  
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('Error reading voice-demo.html:', err);
+      res.status(404).send('Voice demo file not found');
+      return;
+    }
+    res.setHeader('Content-Type', 'text/html');
+    res.send(data);
+  });
+});
+
 // ==================== SERVER START ====================
 
 const PORT = Number(process.env.PORT);

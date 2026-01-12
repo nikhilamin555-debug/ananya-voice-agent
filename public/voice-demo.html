@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ananya Voice Agent - Web Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .info-box p {
+            color: #555;
+            font-size: 14px;
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .start-btn {
+            background: #667eea;
+            color: white;
+        }
+        .start-btn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .stop-btn {
+            background: #f24236;
+            color: white;
+        }
+        .stop-btn:hover:not(:disabled) {
+            background: #d63228;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(242, 66, 54, 0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-indicator.idle {
+            background: #ccc;
+        }
+        .status-indicator.listening {
+            background: #667eea;
+            animation: pulse 1.5s infinite;
+        }
+        .status-indicator.speaking {
+            background: #10b981;
+            animation: pulse 1.5s infinite;
+        }
+        .status-text {
+            font-weight: 600;
+            color: #333;
+            margin-top: 10px;
+        }
+        .transcript {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            min-height: 60px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .transcript-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .transcript-content {
+            color: #333;
+            font-size: 15px;
+            line-height: 1.6;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+        }
+        .transcript-content.empty {
+            color: #999;
+            font-style: italic;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            button {
+                font-size: 14px;
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Ananya Voice Agent</h1>
+        <p class="subtitle">Web Voice Demo - Plumbing & Roofing AI Receptionist</p>
+        
+        <div class="info-box">
+            <p><strong>🎯 Purpose:</strong> This demo showcases the AI voice agent's ability to handle customer inquiries for plumbing and roofing services.</p>
+            <p><strong>🎤 How to use:</strong> Click "Start Listening" to begin a conversation with the AI agent. Your speech will be converted to text and processed by the AI.</p>
+        </div>
+
+        <div class="error" id="error"></div>
+        
+        <div class="status">
+            <div>
+                <span class="status-indicator idle" id="statusIndicator"></span>
+                <span id="statusText">Ready to start</span>
+            </div>
+            <div class="status-text" id="statusLabel">Waiting for input</div>
+        </div>
+
+        <div class="transcript">
+            <div class="transcript-label">Your Message</div>
+            <div class="transcript-content empty" id="userTranscript">Click "Start Listening" to speak...</div>
+        </div>
+
+        <div class="controls">
+            <button class="start-btn" id="startBtn" onclick="startListening()">🎤 Start Listening</button>
+            <button class="stop-btn" id="stopBtn" onclick="stopListening()" disabled>⏹️ Stop Listening</button>
+        </div>
+
+        <div class="transcript">
+            <div class="transcript-label">AI Response</div>
+            <div class="transcript-content empty" id="aiResponse">Waiting for your message...</div>
+        </div>
+    </div>
+
+    <script>
+        // Check browser support for Web Speech API
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            showError('Web Speech API is not supported in your browser. Please use Chrome, Edge, or Safari.');
+        }
+
+        const recognition = new SpeechRecognition();
+        const userTranscriptEl = document.getElementById('userTranscript');
+        const aiResponseEl = document.getElementById('aiResponse');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const statusLabel = document.getElementById('statusLabel');
+        const errorEl = document.getElementById('error');
+
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+            console.log('Speech recognition started');
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusIndicator.className = 'status-indicator listening';
+            statusText.textContent = 'Listening...';
+            statusLabel.textContent = 'Processing your speech';
+            userTranscriptEl.className = 'transcript-content';
+            userTranscriptEl.textContent = 'Listening for your voice...';
+            hideError();
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript + ' ';
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            const displayText = finalTranscript || interimTranscript || 'Still listening...';
+            userTranscriptEl.textContent = displayText;
+            userTranscriptEl.classList.remove('empty');
+
+            if (finalTranscript) {
+                console.log('Final transcript:', finalTranscript);
+                sendToAPI(finalTranscript.trim());
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            let errorMessage = 'An error occurred: ' + event.error;
+            if (event.error === 'no-speech') {
+                errorMessage = 'No speech detected. Please speak clearly and try again.';
+            } else if (event.error === 'network') {
+                errorMessage = 'Network error. Please check your connection.';
+            }
+            showError(errorMessage);
+            resetUI();
+        };
+
+        recognition.onend = () => {
+            console.log('Speech recognition ended');
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+            statusIndicator.className = 'status-indicator idle';
+            statusText.textContent = 'Ready to start';
+            statusLabel.textContent = 'Click start to begin';
+        };
+
+        async function sendToAPI(userMessage) {
+            try {
+                statusText.textContent = 'Processing...';
+                statusLabel.textContent = 'Sending to AI agent...';
+                
+                const response = await fetch('/api/voice-agent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userMessage: userMessage,
+                        conversationContext: 'plumbing-roofing-inquiry'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API response:', data);
+
+                if (data.aiResponse) {
+                    aiResponseEl.textContent = data.aiResponse;
+                    aiResponseEl.classList.remove('empty');
+                    statusIndicator.className = 'status-indicator speaking';
+                    statusText.textContent = 'Agent speaking';
+                    statusLabel.textContent = 'AI response ready';
+                    
+                    // Text-to-speech
+                    speakResponse(data.aiResponse);
+                } else {
+                    showError('No response from AI agent');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to contact AI agent: ' + error.message);
+                resetUI();
+            }
+        }
+
+        function speakResponse(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            utterance.onend = () => {
+                statusIndicator.className = 'status-indicator idle';
+                statusText.textContent = 'Ready for next message';
+                statusLabel.textContent = 'Click start to continue';
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        function startListening() {
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error('Error starting recognition:', error);
+            }
+        }
+
+        function stopListening() {
+            recognition.stop();
+        }
+
+        function resetUI() {
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+            statusIndicator.className = 'status-indicator idle';
+            statusText.textContent = 'Ready to start';
+            statusLabel.textContent = 'Click start to begin';
+        }
+
+        function showError(message) {
+            errorEl.textContent = '❌ ' + message;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            errorEl.classList.remove('show');
+        }
+    </script>
+</body>
+</html>

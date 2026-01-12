@@ -8,8 +8,8 @@ const generateVoiceFromElevenLabs = async (text) => {
     throw new Error('ELEVENLABS_API_KEY environment variable not set');
   }
 
-  // Use Rachel voice - professional, clear, natural
-  const voiceId = 'EXAVITQu4vr4xnSDxMaL';
+  // Use Use Joanna voice - natural, warm, engaging female voice professional, clear, natural
+  const voiceId = 'JBFqwQsQvV1CJ8z1cv5l';
 
   try {
     const response = await fetch(

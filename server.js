@@ -280,6 +280,48 @@ app.get('/voice-demo.html', (req, res) => {
   });
 });
 
+
+// Voice Agent API Endpoint
+app.post('/api/voice-agent', async (req, res) => {
+  try {
+    const { userMessage, conversationContext = [] } = req.body;
+
+    if (!userMessage) {
+      return res.status(400).json({ error: 'userMessage is required' });
+    }
+
+    const OpenAI = require('openai');
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a professional US-based virtual receptionist. Speak clearly, be helpful, and provide accurate information about plumbing and roofing services.',
+      },
+      ...conversationContext,
+      {
+        role: 'user',
+        content: userMessage,
+      },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.4,
+    });
+
+    const aiResponse = completion.choices[0]?.message?.content || 'Sorry, I did not catch that.';
+
+    res.json({ aiResponse });
+  } catch (err) {
+    console.error('Voice agent error:', err);
+    res.status(500).json({ error: 'Failed to process voice request', details: err.message });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const PORT = Number(process.env.PORT);

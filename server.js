@@ -282,6 +282,24 @@ app.get('/voice-demo.html', (req, res) => {
 
 
 // Voice Agent API Endpoint
+// Helper function to normalize conversation context
+const normalizeConversationContext = (context) => {
+  if (!Array.isArray(context)) return [];
+  
+  return context
+    .filter(
+      (msg) =>
+        msg &&
+        typeof msg === 'object' &&
+        typeof msg.role === 'string' &&
+        typeof msg.content === 'string'
+    )
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+};
+
 app.post('/api/voice-agent', async (req, res) => {
   try {
     const { userMessage, conversationContext = [] } = req.body;
@@ -295,12 +313,13 @@ app.post('/api/voice-agent', async (req, res) => {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
+        const safeContext = normalizeConversationContext(conversationContext);
     const messages = [
       {
         role: 'system',
         content: 'You are a professional US-based virtual receptionist. Speak clearly, be helpful, and provide accurate information about plumbing and roofing services.',
       },
-      ...conversationContext,
+      ...safeContext,
       {
         role: 'user',
         content: userMessage,

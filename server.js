@@ -18,7 +18,8 @@ const {
   PLUMBING_AI_SYSTEM_PROMPT 
 } = require('./engine/phase3Phase4Integration');
 const PLUMBING_KB = require('./engine/plumbingKnowledgeBase');
-
+const { MR_ROOTER_PROFILE } = require('./engine/mrRooterProfile');
+const { generateVoiceFromElevenLabs } = require('./engine/elevenLabsService');
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
